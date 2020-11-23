@@ -22,6 +22,7 @@ class Ball:
     Creates a cannon ball according to the power and direction of the Gun.
     Controls it's movement(and reflection from walls).
     '''
+
     def __init__(self, coord, vel, rad=15, color=None):
         '''
         Initializes ball's parameters (color, radius) and initial coordinates and velocity.
@@ -49,7 +50,7 @@ class Ball:
         for i in range(2):
             self.coord[i] += int(self.vel[i] * t_step)
         self.check_walls()
-        if self.vel[0]**2 + self.vel[1]**2 < 2**2 and self.coord[1] > SCREEN_SIZE[1] - 2*self.rad:
+        if self.vel[0] ** 2 + self.vel[1] ** 2 < 2 ** 2 and self.coord[1] > SCREEN_SIZE[1] - 2 * self.rad:
             self.is_alive = False
 
     def check_walls(self, refl_ort=0.8, refl_par=0.9):
@@ -66,11 +67,65 @@ class Ball:
                 self.vel[i] = -int(self.vel[i] * refl_ort)
                 self.vel[1 - i] = int(self.vel[1 - i] * refl_par)
 
+class New_Ball():
+    '''
+    Creates another cannon ball according to the power and direction of the Gun.
+    Controls it's movement(and reflection from walls).
+    '''
+
+    def __init__(self, coord, vel, rad=10, color=None):
+        '''
+        Initializes new ball's parameters (color, radius) and initial coordinates and velocity.
+        '''
+        if color is None:
+            color = random_col()
+        self.color = color
+        self.coord = coord
+        self.vel = vel
+        self.rad = rad
+        self.is_alive = True
+        self.height = self.rad * 1.41
+
+    def draw(self, screen):
+        '''
+        Draws the new ball on the screen.
+        '''
+        pg.draw.polygon(screen, self.color, [(self.coord[0], self.coord[1]),
+                                             (self.coord[0] + self.height, self.coord[1]),
+                                             (self.coord[0] + self.height, self.coord[1] + self.height),
+                                             (self.coord[0], self.coord[1] + self.height)])
+
+    def move(self, t_step=1., g=0):
+        '''
+        Moves the new ball according to it's velocity and time step.
+        Changes the new ball's velocity due to gravitational force.
+        '''
+        for i in range(2):
+            self.coord[i] += int(self.vel[i] * t_step)
+        self.check_walls()
+        if self.vel[0] ** 2 + self.vel[1] ** 2 < 2 ** 2:
+            self.is_alive = False
+
+    def check_walls(self, refl_ort=0.5, refl_par=0.6):
+        '''
+        Inelastically reflects new ball's velocity when ball collides with the walls.
+        '''
+        for i in range(2):
+            if self.coord[i] < self.rad:
+                self.coord[i] = self.rad
+                self.vel[i] = -int(self.vel[i] * refl_ort)
+                self.vel[1 - i] = int(self.vel[1 - i] * refl_par)
+            elif self.coord[i] > SCREEN_SIZE[i] - self.rad:
+                self.coord[i] = SCREEN_SIZE[i] - self.rad
+                self.vel[i] = -int(self.vel[i] * refl_ort)
+                self.vel[1 - i] = int(self.vel[1 - i] * refl_par)
+
 
 class Table:
     '''
     Writes on the screen the score and the quantity of the used balls.
     '''
+
     def __init__(self, destroyed=0, used=0):
         '''
         Initializes the needed parameters and the font of the text on the screen.
@@ -99,7 +154,8 @@ class Gun:
     '''
     Creates a gun. Controls gun's power, motion and striking.
     '''
-    def __init__(self, coord=[30, SCREEN_SIZE[1]//2], min_pow=20, max_pow=50):
+
+    def __init__(self, coord=[30, SCREEN_SIZE[1] // 2], min_pow=20, max_pow=50):
         '''
         Initializes gun's parameters (direction, min/max power, color) and initial coordinates and velocity.
         '''
@@ -117,21 +173,38 @@ class Gun:
         self.active = True
 
     def draw(self, screen):
-        '''
-        Draws the gun on the screen.
-        '''
-        end_pos = [self.coord[0] + self.pow*np.cos(self.angle),
-                   self.coord[1] + self.pow*np.sin(self.angle)]
-        pg.draw.line(screen, RED, self.coord, end_pos, 5)
+        """
+        Draws a gun on the screen.
+        """
+        end_pos = np.array([self.coord[0] + self.pow * np.cos(self.angle),
+                            self.coord[1] + self.pow * np.sin(self.angle)], dtype=int)
+        parallel = end_pos - self.coord
+        normal = np.array([-parallel[1], parallel[0]], dtype=int)
+        normal = np.array(5 * normal / np.linalg.norm(normal), dtype=int)
+
+        vertexes = [self.coord + normal, self.coord - normal,
+                    self.coord - normal + parallel, self.coord + normal + parallel]
+
+        pg.draw.polygon(screen, RED, vertexes)
+        pg.draw.circle(screen, BLACK, self.coord + normal, 5)
 
     def strike(self):
         '''
-        Creates a cannon ball, according to gun's current direction and power.
+        Creates first cannon ball, according to gun's current direction and power.
         '''
-        vel = [int(self.pow * np.cos(self.angle)), int(self.pow * np.sin(self.angle))]
+        ball = Ball(list(self.coord), [int(self.pow * np.cos(self.angle)), int(self.pow * np.sin(self.angle))])
         self.active = False
         self.pow = self.min_pow
-        return Ball(list(self.coord), vel)
+        return ball
+
+    def shoot(self):
+        '''
+        Creates a new cannon ball, according to gun's current direction and power.
+        '''
+        ball = New_Ball(list(self.coord), [int(self.pow * np.cos(self.angle)), int(self.pow * np.sin(self.angle))])
+        self.active = False
+        self.pow = self.min_pow
+        return ball
 
     def power(self):
         '''
@@ -140,12 +213,19 @@ class Gun:
         if self.active and self.pow < self.max_pow:
             self.pow += 1
 
-    def move(self, inc):
+    def move_y(self, inc):
         '''
         Moves the gun along Oy.
         '''
         if (self.coord[1] > 30 or inc > 0) and (self.coord[1] < SCREEN_SIZE[1] - 30 or inc < 0):
             self.coord[1] += inc
+
+    def move_x(self, inc):
+        '''
+        Moves the gun along Ox.
+        '''
+        if (self.coord[0] > 3 or inc > 0) and (self.coord[0] < SCREEN_SIZE[0] - 3 or inc < 0):
+            self.coord[0] -= inc
 
     def set_angle(self, mouse_pos):
         '''
@@ -159,6 +239,7 @@ class Target:
     '''
     Creates a static target, controls it's movement(none) and collision with a cannon ball.
     '''
+
     def __init__(self, coord=None, color=None, rad=30):
         '''
         Sets coordinates, color and radius of the target.
@@ -198,7 +279,8 @@ class MovingTarget(Target):
     Creates a moving target, using the creation of a static target.
     Controls it's motion and collision with a cannon ball.
     '''
-    def __init__(self, coord=None,  color=None, rad=30):
+
+    def __init__(self, coord=None, color=None, rad=30):
         '''
         Sets coordinates, velocity, color and radius of the target.
         '''
@@ -216,8 +298,6 @@ class MovingTarget(Target):
         for i in range(2):
             self.coord[i] += int(self.vel[i] * t_step)
         self.check_walls()
-        if self.vel[0]**2 + self.vel[1]**2 < 2**2 and self.coord[1] > SCREEN_SIZE[1] - 2*self.rad:
-            self.is_alive = False
 
     def check_walls(self, refl_ort=0.8, refl_par=0.9):
         '''
@@ -234,10 +314,96 @@ class MovingTarget(Target):
                 self.vel[1 - i] = int(self.vel[1 - i] * refl_par)
 
 
+class Aim(object):
+    '''
+    Creates a static aim (second type of target).
+    Controls it's motion and collision with cannon balls.
+    '''
+
+    def __init__(self, coord=None, color=None, rad=30):
+        '''
+        Sets coordinates, color and radius of the aim.
+        '''
+        self.rad = randint(20, 50)
+        if coord is None:
+            coord = [randint(3 * rad, SCREEN_SIZE[0] - 3 * rad), randint(3 * rad, SCREEN_SIZE[1] - 3 * rad)]
+        self.coord = coord
+        if color is None:
+            color = random_col()
+        self.color = color
+        self.is_alive = True
+
+    def draw(self, screen):
+        """Draws a special aim of a random color in random x, y coordinates with random size"""
+        pg.draw.polygon(screen, self.color, [(self.coord[0], self.coord[1]),
+                                             (self.coord[0] + self.rad * 1.71 / 2, self.coord[1] - self.rad / 2),
+                                             (self.coord[0] + self.rad * 1.71, self.coord[1]),
+                                             (self.coord[0] + self.rad * 1.71, self.coord[1] + self.rad),
+                                             (self.coord[0] + self.rad * 1.71 / 2, self.coord[1] + 3 * self.rad / 2),
+                                             (self.coord[0], self.coord[1] + self.rad)])
+
+    def check_collision(self, ball):
+        '''
+        Checks if the ball has collided into the aim.
+        '''
+        dist = sum([(self.coord[i] - ball.coord[i]) ** 2 for i in range(2)]) ** 0.5
+        min_dist = self.rad + ball.rad
+        return dist <= min_dist
+
+    def move(self):
+        '''
+        Aim is static.
+        '''
+        pass
+
+
+class MovingAim(Aim):
+    '''
+    Creates a moving aim, using the creation of a static aim.
+    Controls it's motion and collision with a cannon ball.
+    '''
+
+    def __init__(self, coord=None, color=None, rad=30):
+        '''
+        Sets coordinates, velocity, color and radius of the moving aim.
+        '''
+        super().__init__(coord, color, rad)
+        self.vx = randint(-50, +50)
+        self.vy = randint(-50, +50)
+        self.vel = [self.vx, self.vy]
+
+    def move(self):
+        """Moves the aim in the screen (with reflection from the walls)"""
+        self.color = random_col()
+        self.coord[0] += 3 * self.vx
+        self.coord[1] += 3 * self.vy
+        self.rad -= 1
+        if self.rad <= 5:
+            self.color = random_col()
+            self.rad = randint(20, 50)
+            for i in range(2):
+                self.coord[i] = randint(3 * self.rad, SCREEN_SIZE[i] - 3 * self.rad)
+                self.vel[i] = randint(-50, 50)
+        self.check_walls()
+
+    def check_walls(self):
+        '''
+        Changes aim's velocity for the aim to finally stay near the corner when aim collides with the walls.
+        '''
+        for i in range(2):
+            if self.coord[i] < 3 * self.rad:
+                self.coord[i] = 3 * self.rad
+                self.vel[i] = randint(10, 50)
+            elif self.coord[i] > SCREEN_SIZE[i] - 3 * self.rad:
+                self.coord[i] = SCREEN_SIZE[i] - 3 * self.rad
+                self.vel[i] = randint(-50, 10)
+
+
 class Manager:
     '''
     Manages events' handling, ball's and target's creation, motion and collisions, etc.
     '''
+
     def __init__(self, n_targets=3):
         '''
         Sets the number of moving and static targets.
@@ -260,6 +426,12 @@ class Manager:
         for i in range(self.n_targets):
             self.targets.append(MovingTarget(rad=randint(max(3, 30 - 2 * max(0, self.table.score())),
                                                          30 - max(0, self.table.score()))))
+        for i in range(self.n_targets):
+            self.targets.append(Aim(rad=randint(max(3, 30 - 2 * max(0, self.table.score())),
+                                                30 - max(0, self.table.score()))))
+        for i in range(self.n_targets):
+            self.targets.append(MovingAim(rad=randint(max(3, 30 - 2 * max(0, self.table.score())),
+                                                      30 - max(0, self.table.score()))))
 
     def process(self, events, screen):
         '''
@@ -282,7 +454,7 @@ class Manager:
 
     def draw(self, screen):
         '''
-        Draws balls, gun, targets and score.
+        Draws balls, new balls, gun, targets, aims and score.
         '''
         for ball in self.balls:
             ball.draw(screen)
@@ -293,7 +465,7 @@ class Manager:
 
     def move(self):
         '''
-        Moves balls, targets and gun, removes dead balls.
+        Moves balls, new balls, aims, targets and gun, removes dead balls and new dead balls.
         '''
         dead_balls = []
         for i, ball in enumerate(self.balls):
@@ -308,7 +480,7 @@ class Manager:
 
     def collide(self):
         '''
-        Checks if the ball collides into the target.
+        Checks if the ball or new ball collides into the target or aim.
         '''
         collisions = []
         targets_c = []
@@ -331,10 +503,20 @@ class Manager:
             if event.type == pg.QUIT:
                 done = True
             elif event.type == pg.KEYDOWN:
+                if event.key == pg.K_RIGHT:
+                    self.gun.move_x(-5)
+                if event.key == pg.K_LEFT:
+                    self.gun.move_x(5)
                 if event.key == pg.K_UP:
-                    self.gun.move(-5)
-                elif event.key == pg.K_DOWN:
-                    self.gun.move(5)
+                    self.gun.move_y(-5)
+                if event.key == pg.K_DOWN:
+                    self.gun.move_y(5)
+                if event.key == pg.K_SPACE:
+                    self.gun.activate()
+            elif event.type == pg.KEYUP:
+                if event.key == pg.K_SPACE:
+                    self.balls.append(self.gun.shoot())
+                    self.table.used += 1
             elif event.type == pg.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     self.gun.activate()
@@ -346,7 +528,7 @@ class Manager:
 
 
 screen = pg.display.set_mode(SCREEN_SIZE)
-pg.display.set_caption("The gun of Tomashuk")
+pg.display.set_caption("The Gun")
 clock = pg.time.Clock()
 screen.fill(WHITE)
 
@@ -362,6 +544,5 @@ while not done:
     pg.display.flip()
 
     screen.fill(WHITE)
-
 
 pg.quit()
