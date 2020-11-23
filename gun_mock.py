@@ -110,6 +110,7 @@ class New_Ball():
         '''
         Inelastically reflects new ball's velocity when ball collides with the walls.
         '''
+        self.color_parts = []
         for i in range(2):
             if self.coord[i] < self.rad:
                 self.coord[i] = self.rad
@@ -299,9 +300,9 @@ class MovingTarget(Target):
             self.coord[i] += int(self.vel[i] * t_step)
         self.check_walls()
 
-    def check_walls(self, refl_ort=0.8, refl_par=0.9):
+    def check_walls(self, refl_ort=1.0, refl_par=1.0):
         '''
-        Inelastically reflects target's velocity when target collides with the walls.
+        Elastically reflects target's velocity when target collides with the walls.
         '''
         for i in range(2):
             if self.coord[i] < self.rad:
@@ -427,11 +428,11 @@ class Manager:
             self.targets.append(MovingTarget(rad=randint(max(3, 30 - 2 * max(0, self.table.score())),
                                                          30 - max(0, self.table.score()))))
         for i in range(self.n_targets):
-            self.targets.append(Aim(rad=randint(max(3, 30 - 2 * max(0, self.table.score())),
-                                                30 - max(0, self.table.score()))))
+            self.targets.append(Aim(rad=randint(max(20, 50 - 2 * max(0, self.table.score())),
+                                                50 - max(0, self.table.score()))))
         for i in range(self.n_targets):
-            self.targets.append(MovingAim(rad=randint(max(3, 30 - 2 * max(0, self.table.score())),
-                                                      30 - max(0, self.table.score()))))
+            self.targets.append(MovingAim(rad=randint(max(20, 50 - 2 * max(0, self.table.score())),
+                                                      50 - max(0, self.table.score()))))
 
     def process(self, events, screen):
         '''
