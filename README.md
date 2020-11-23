@@ -6,4 +6,5 @@ button to shoot with the circle cannon).
 The power and the direction of the gun depend only on the player's 
 wish and skills of playing this amazing game. 
 The score and the number of used balls can be seen on the screen 
-while playing. The levels and their difficulty are updating automatically.
+while playing. The levels and the difficulty (depending on the current 
+score) are updating automatically.
